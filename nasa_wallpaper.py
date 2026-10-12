@@ -2,6 +2,7 @@
 """NASA's picture of the day as a desktop notification and wallpaper."""
 import argparse
 import json
+import locale
 import os
 import random
 import re
@@ -22,6 +23,42 @@ LIBRARY_URL = "https://images-api.nasa.gov/search"
 # DEMO_KEY is rate limited per IP but plenty for a few requests a day.
 API_KEY = os.environ.get("NASA_API_KEY", "DEMO_KEY")
 SEARCH_TERMS = ["nebula", "galaxy", "hubble", "webb telescope", "aurora", "saturn", "jupiter", "earth from orbit"]
+
+STRINGS = {
+    "en": {
+        "set": "Set as wallpaper",
+        "favorite": "Favorite",
+        "details": "Details",
+        "ok": "OK",
+        "saved": "Saved to favorites",
+        "no_current": "No wallpaper set by this script yet",
+        "no_photos": "No wallpaper-sized photos in this search, try again",
+        "api_error": "NASA API error",
+        "network_error": "Network error",
+        "timed_out": "timed out",
+    },
+    "tr": {
+        "set": "Duvar kâğıdı yap",
+        "favorite": "Favorilere ekle",
+        "details": "Ayrıntılar",
+        "ok": "Tamam",
+        "saved": "Favorilere eklendi",
+        "no_current": "Bu script henüz bir duvar kâğıdı ayarlamadı",
+        "no_photos": "Bu aramada duvar kâğıdına uygun fotoğraf yok, tekrar deneyin",
+        "api_error": "NASA API hatası",
+        "network_error": "Ağ hatası",
+        "timed_out": "zaman aşımı",
+    },
+}
+
+
+def language():
+    lang = os.environ.get("NASA_WALLPAPER_LANG") or locale.getlocale()[0] or ""
+    # Windows reports names like "Turkish_Türkiye" instead of "tr_TR".
+    return "tr" if lang.lower().startswith(("tr", "turkish")) else "en"
+
+
+T = STRINGS[language()]
 
 
 def pictures_dir():
@@ -86,7 +123,7 @@ def library_random():
         if best and best.get("width", 0) >= 1920 and best["width"] > best.get("height", 0):
             candidates.append((item["data"][0], best["href"]))
     if not candidates:
-        raise RuntimeError("No wallpaper-sized photos in this search, try again")
+        raise RuntimeError(T["no_photos"])
     meta, image = random.choice(candidates)
     return {
         "id": f"nasa_{meta['nasa_id']}",
@@ -143,7 +180,7 @@ def dialog(title, body, actions):
         choice = name
         root.destroy()
 
-    for name, label in (actions or {"ok": "OK"}).items():
+    for name, label in (actions or {"ok": T["ok"]}).items():
         tk.Button(row, text=label, command=lambda n=name: pick(n)).pack(side="left", padx=4)
     root.mainloop()
     return choice
@@ -176,15 +213,15 @@ def notify(title, body, icon=None, actions=None, replace_id=None):
 def offer(path, auto):
     """Notify about a picture and act on the clicked button."""
     entry = metadata(path)
-    actions = {"favorite": "Favorite", "details": "Details"}
+    actions = {"favorite": T["favorite"], "details": T["details"]}
     if auto:
         set_wallpaper(path)
     else:
-        actions = {"set": "Set as wallpaper", **actions}
+        actions = {"set": T["set"], **actions}
     body = entry["explanation"]
     if len(body) > 200:
         body = body[:200].rsplit(" ", 1)[0] + "…"
-    # Re-show the notification after each click until it's dismissed; done actions drop off.
+    # Re-show the notification after each click until it's dismissed or the wallpaper is set.
     notification_id = None
     while True:
         notification_id, choice = notify(entry["title"], body, path, actions, notification_id)
@@ -192,12 +229,21 @@ def offer(path, auto):
             break
         if choice == "set":
             set_wallpaper(path)
-            del actions["set"]
-        elif choice == "favorite":
+            close_notification(notification_id)
+            break
+        if choice == "favorite":
             favorite(path)
             del actions["favorite"]
         elif choice == "details":
             webbrowser.open(entry["link"])
+
+
+def close_notification(notification_id):
+    if notification_id:
+        subprocess.run(["gdbus", "call", "--session", "--dest=org.freedesktop.Notifications",
+                        "--object-path=/org/freedesktop/Notifications",
+                        "--method=org.freedesktop.Notifications.CloseNotification", notification_id],
+                       capture_output=True)
 
 
 def favorite(path):
@@ -221,17 +267,17 @@ def main():
         elif args.command == "skip":
             offer(download(library_random()), auto=True)
         elif not CURRENT.exists():
-            sys.exit("No wallpaper set by this script yet")
+            sys.exit(T["no_current"])
         else:
             path = Path(CURRENT.read_text())
             favorite(path)
-            notify("Saved to favorites", metadata(path)["title"], path)
+            notify(T["saved"], metadata(path)["title"], path)
     except urllib.error.HTTPError as e:
-        sys.exit(f"NASA API error {e.code}: {e.reason}")
+        sys.exit(f"{T['api_error']} {e.code}: {e.reason}")
     except urllib.error.URLError as e:
-        sys.exit(f"Network error: {e.reason}")
+        sys.exit(f"{T['network_error']}: {e.reason}")
     except TimeoutError:
-        sys.exit("Network error: timed out")
+        sys.exit(f"{T['network_error']}: {T['timed_out']}")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-# nasa_daily_wallpaper_script
+# nasa-daily-wallpaper
 
 Every day, shows NASA's picture of the day in a notification, with buttons to set it as your wallpaper,
 save it to favorites or read more about it. Works on Linux (GNOME) and Windows. Pure Python standard
@@ -21,12 +21,16 @@ python3 nasa_wallpaper.py favorite   # save the current wallpaper to favorites
 Optionally get a free API key from [api.nasa.gov](https://api.nasa.gov/) and set it as `NASA_API_KEY`.
 Without one the shared `DEMO_KEY` is used, which is enough for daily use.
 
+Buttons and messages follow the system language (English or Turkish). Set `NASA_WALLPAPER_LANG=tr` or
+`NASA_WALLPAPER_LANG=en` to override it.
+
 ## Run daily on Linux (GNOME)
 
 ```sh
 install -Dm755 nasa_wallpaper.py ~/.local/bin/nasa-wallpaper
 install -Dm644 -t ~/.config/systemd/user systemd/nasa-wallpaper.service systemd/nasa-wallpaper.timer
-echo "NASA_API_KEY=your-key" > ~/.config/nasa-wallpaper.env   # optional
+echo "NASA_API_KEY=your-key" >> ~/.config/nasa-wallpaper.env   # optional
+echo "NASA_WALLPAPER_LANG=tr" >> ~/.config/nasa-wallpaper.env  # optional
 systemctl --user daemon-reload
 systemctl --user enable --now nasa-wallpaper.timer
 ```
