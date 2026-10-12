@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily NASA Astronomy Picture of the Day
+
+[Timer]
+# APOD updates around midnight US Eastern; 09:00 is safely after that in Europe.
+OnCalendar=*-*-* 09:00
+# Run at login if the computer was off at 09:00.
+Persistent=true
+
+[Install]
+WantedBy=graphical-session.target

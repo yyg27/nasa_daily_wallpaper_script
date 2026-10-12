@@ -1,0 +1,11 @@
+[Unit]
+Description=NASA Astronomy Picture of the Day
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+EnvironmentFile=-%h/.config/nasa-wallpaper.env
+ExecStart=%h/.local/bin/nasa-wallpaper
+# Retry when the network isn't up yet right after login.
+Restart=on-failure
+RestartSec=2min
