@@ -149,24 +149,28 @@ def dialog(title, body, actions):
     return choice
 
 
-def notify(title, body, icon=None, actions=None):
-    """Show a notification and return the clicked action name, if any."""
+def notify(title, body, icon=None, actions=None, replace_id=None):
+    """Show (or update) a notification. Returns (notification id, clicked action or None)."""
     if not shutil.which("notify-send"):
         try:
-            return dialog(title, body, actions)
+            return None, dialog(title, body, actions)
         except ImportError:
             print(f"{title}\n{body}")
-            return None
-    cmd = ["notify-send", "--app-name=NASA Wallpaper", title, body]
+            return None, None
+    # resident: GNOME keeps the notification open after a button is clicked.
+    cmd = ["notify-send", "--app-name=NASA Wallpaper", "--print-id", "--hint=boolean:resident:true", title, body]
     if icon:
         cmd.append(f"--icon={icon}")
+    if replace_id:
+        cmd.append(f"--replace-id={replace_id}")
     cmd += [f"--action={name}={label}" for name, label in (actions or {}).items()]
     try:
         # Unanswered notifications would otherwise keep the service busy into the next day.
         out = subprocess.run(cmd, capture_output=True, text=True, timeout=6 * 3600)
     except subprocess.TimeoutExpired:
-        return None
-    return out.stdout.strip() or None
+        return replace_id, None
+    lines = out.stdout.split()
+    return (lines[0] if lines else None), (lines[1] if len(lines) > 1 else None)
 
 
 def offer(path, auto):
@@ -180,13 +184,20 @@ def offer(path, auto):
     body = entry["explanation"]
     if len(body) > 200:
         body = body[:200].rsplit(" ", 1)[0] + "…"
-    choice = notify(entry["title"], body, path, actions)
-    if choice == "set":
-        set_wallpaper(path)
-    elif choice == "favorite":
-        favorite(path)
-    elif choice == "details":
-        webbrowser.open(entry["link"])
+    # Re-show the notification after each click until it's dismissed; done actions drop off.
+    notification_id = None
+    while True:
+        notification_id, choice = notify(entry["title"], body, path, actions, notification_id)
+        if choice is None:
+            break
+        if choice == "set":
+            set_wallpaper(path)
+            del actions["set"]
+        elif choice == "favorite":
+            favorite(path)
+            del actions["favorite"]
+        elif choice == "details":
+            webbrowser.open(entry["link"])
 
 
 def favorite(path):
@@ -194,7 +205,6 @@ def favorite(path):
         FAVORITES.mkdir(parents=True, exist_ok=True)
         shutil.copy2(path, FAVORITES)
         shutil.copy2(path.with_suffix(".json"), FAVORITES)
-    notify("Saved to favorites", metadata(path)["title"], path)
 
 
 def main():
@@ -213,7 +223,9 @@ def main():
         elif not CURRENT.exists():
             sys.exit("No wallpaper set by this script yet")
         else:
-            favorite(Path(CURRENT.read_text()))
+            path = Path(CURRENT.read_text())
+            favorite(path)
+            notify("Saved to favorites", metadata(path)["title"], path)
     except urllib.error.HTTPError as e:
         sys.exit(f"NASA API error {e.code}: {e.reason}")
     except urllib.error.URLError as e:
