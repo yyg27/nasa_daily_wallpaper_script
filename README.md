@@ -1,4 +1,6 @@
-# nasa-daily-wallpaper
+# nasa-daily-cosmos
+
+A daily glimpse of the cosmos: NASA's picture of the day as a small notification.
 
 Each morning you get a photo, its title and a few lines about it. Curious? Click **Details** to read the
 full story. Liked it? Add it to your favorites, or set it as your wallpaper. Works on Linux (GNOME)
@@ -14,32 +16,32 @@ and Windows. Pure Python standard library, nothing to `pip install`.
 ## Usage
 
 ```sh
-python3 nasa_wallpaper.py            # show today's picture
-python3 nasa_wallpaper.py random     # show a random NASA photo
-python3 nasa_wallpaper.py favorite   # save the last shown picture to favorites
+python3 nasa_daily_cosmos.py            # show today's picture
+python3 nasa_daily_cosmos.py random     # show a random NASA photo
+python3 nasa_daily_cosmos.py favorite   # save the last shown picture to favorites
 ```
 
 Optionally get a free API key from [api.nasa.gov](https://api.nasa.gov/) and set it as `NASA_API_KEY`.
 Without one the shared `DEMO_KEY` is used, which is enough for daily use.
 
-Buttons and messages follow the system language (English or Turkish). Set `NASA_WALLPAPER_LANG=tr` or
-`NASA_WALLPAPER_LANG=en` to override it.
+Buttons and messages follow the system language (English or Turkish). Set `NASA_DAILY_COSMOS_LANG=tr` or
+`NASA_DAILY_COSMOS_LANG=en` to override it.
 
 Tests: `python3 -m unittest`.
 
 ## Run daily on Linux (GNOME)
 
 ```sh
-install -Dm755 nasa_wallpaper.py ~/.local/bin/nasa-wallpaper
-install -Dm644 -t ~/.config/systemd/user systemd/nasa-wallpaper.service systemd/nasa-wallpaper.timer
-echo "NASA_API_KEY=your-key" >> ~/.config/nasa-wallpaper.env   # optional
-echo "NASA_WALLPAPER_LANG=tr" >> ~/.config/nasa-wallpaper.env  # optional
+install -Dm755 nasa_daily_cosmos.py ~/.local/bin/nasa-daily-cosmos
+install -Dm644 -t ~/.config/systemd/user systemd/nasa-daily-cosmos.service systemd/nasa-daily-cosmos.timer
+echo "NASA_API_KEY=your-key" >> ~/.config/nasa-daily-cosmos.env   # optional
+echo "NASA_DAILY_COSMOS_LANG=tr" >> ~/.config/nasa-daily-cosmos.env  # optional
 systemctl --user daemon-reload
-systemctl --user enable --now nasa-wallpaper.timer
+systemctl --user enable --now nasa-daily-cosmos.timer
 ```
 
 It runs every day at 09:00, or right after login if the computer was off. To run it now:
-`systemctl --user start nasa-wallpaper`.
+`systemctl --user start nasa-daily-cosmos`.
 
 ## Run daily on Windows
 
@@ -47,10 +49,10 @@ Install Python from [python.org](https://www.python.org/downloads/) (it includes
 popup window needs). Then in PowerShell, from this folder:
 
 ```powershell
-$action = New-ScheduledTaskAction -Execute "pythonw.exe" -Argument "`"$PWD\nasa_wallpaper.py`""
+$action = New-ScheduledTaskAction -Execute "pythonw.exe" -Argument "`"$PWD\nasa_daily_cosmos.py`""
 $trigger = New-ScheduledTaskTrigger -Daily -At 9am
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable
-Register-ScheduledTask -TaskName "NASA Wallpaper" -Action $action -Trigger $trigger -Settings $settings
+Register-ScheduledTask -TaskName "NASA Daily Cosmos" -Action $action -Trigger $trigger -Settings $settings
 ```
 
 `-StartWhenAvailable` runs it after login if the computer was off at 09:00.

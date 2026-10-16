@@ -61,7 +61,7 @@ STRINGS = {
 
 
 def language():
-    lang = os.environ.get("NASA_WALLPAPER_LANG") or locale.getlocale()[0] or ""
+    lang = os.environ.get("NASA_DAILY_COSMOS_LANG") or locale.getlocale()[0] or ""
     # Windows reports names like "Turkish_Türkiye" instead of "tr_TR".
     return "tr" if lang.lower().startswith(("tr", "turkish")) else "en"
 
@@ -176,7 +176,7 @@ def dialog(title, body, actions):
     import tkinter as tk
     choice = None
     root = tk.Tk()
-    root.title("NASA Wallpaper")
+    root.title("NASA Daily Cosmos")
     root.attributes("-topmost", True)
     tk.Label(root, text=title, font=("TkDefaultFont", 12, "bold"), wraplength=420, justify="left").pack(
         padx=16, pady=(16, 4), anchor="w")
@@ -204,7 +204,7 @@ def notify(title, body, icon=None, actions=None, replace_id=None):
             print(f"{title}\n{body}")
             return None, None
     # resident: GNOME keeps the notification open after a button is clicked.
-    cmd = ["notify-send", "--app-name=NASA Wallpaper", "--print-id", "--hint=boolean:resident:true", title, body]
+    cmd = ["notify-send", "--app-name=NASA Daily Cosmos", "--print-id", "--hint=boolean:resident:true", title, body]
     if icon:
         cmd.append(f"--icon={icon}")
     if replace_id:

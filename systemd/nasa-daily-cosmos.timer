@@ -1,5 +1,5 @@
 [Unit]
-Description=Daily NASA Astronomy Picture of the Day
+Description=Daily NASA picture of the day notification
 
 [Timer]
 # APOD updates around midnight US Eastern; 09:00 is safely after that in Europe.

@@ -5,7 +5,7 @@ import time
 import unittest
 from pathlib import Path
 
-import nasa_wallpaper as nw
+import nasa_daily_cosmos as nw
 
 
 class Base(unittest.TestCase):

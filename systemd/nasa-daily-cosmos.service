@@ -4,8 +4,8 @@ After=graphical-session.target
 
 [Service]
 Type=oneshot
-EnvironmentFile=-%h/.config/nasa-wallpaper.env
-ExecStart=%h/.local/bin/nasa-wallpaper
+EnvironmentFile=-%h/.config/nasa-daily-cosmos.env
+ExecStart=%h/.local/bin/nasa-daily-cosmos
 # Retry when the network isn't up yet right after login.
 Restart=on-failure
 RestartSec=2min
