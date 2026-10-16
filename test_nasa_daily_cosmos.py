@@ -124,5 +124,31 @@ class ThumbnailTest(unittest.TestCase):
                 self.assertIsNone(nw.thumbnail(Path("x.jpg")))
 
 
+class FixesTest(unittest.TestCase):
+    def test_notification_body_is_escaped_for_gnome_markup(self):
+        with mock.patch("shutil.which", return_value="/usr/bin/notify-send"), mock.patch("subprocess.run") as run:
+            run.return_value.stdout = ""
+            nw.notify("Stars & <dust>", "Stars & <dust>")
+        cmd = run.call_args.args[0]
+        self.assertIn("Stars & <dust>", cmd)  # the title is plain text
+        self.assertIn("Stars &amp; &lt;dust&gt;", cmd)
+
+    def test_apod_network_errors_fall_back(self):
+        for error in (TimeoutError(), urllib.error.URLError("offline"),
+                      urllib.error.HTTPError("", 500, "down", None, None)):
+            with mock.patch.object(nw, "get_json", side_effect=error):
+                self.assertIsNone(nw.apod_today())
+
+    def test_windows_pictures_folder_follows_onedrive(self):
+        winreg = mock.MagicMock()
+        winreg.QueryValueEx.return_value = ("%USERPROFILE%\\OneDrive\\Pictures", 2)
+        winreg.ExpandEnvironmentStrings.side_effect = lambda s: s.replace("%USERPROFILE%", "C:\\Users\\me")
+        with mock.patch.dict("sys.modules", winreg=winreg), mock.patch.object(nw.sys, "platform", "win32"):
+            self.assertEqual(nw.pictures_dir(), Path("C:\\Users\\me\\OneDrive\\Pictures"))
+        winreg.OpenKey.side_effect = OSError
+        with mock.patch.dict("sys.modules", winreg=winreg), mock.patch.object(nw.sys, "platform", "win32"):
+            self.assertEqual(nw.pictures_dir(), Path.home() / "Pictures")
+
+
 if __name__ == "__main__":
     unittest.main()

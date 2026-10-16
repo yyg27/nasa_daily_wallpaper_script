@@ -71,6 +71,15 @@ T = STRINGS[language()]
 
 
 def pictures_dir():
+    if sys.platform == "win32":
+        # The registry has the real Pictures folder, which may be moved into OneDrive.
+        import winreg
+        try:
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
+                                r"Software\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders") as key:
+                return Path(winreg.ExpandEnvironmentStrings(winreg.QueryValueEx(key, "My Pictures")[0]))
+        except OSError:
+            return Path.home() / "Pictures"
     try:
         out = subprocess.run(["xdg-user-dir", "PICTURES"], capture_output=True, text=True, check=True)
         return Path(out.stdout.strip())
@@ -90,10 +99,10 @@ def get_json(url, **params):
 
 
 def apod_today():
-    """Today's APOD, or None on video days or when the API is broken."""
+    """Today's APOD, or None on video days or when the API is broken or unreachable."""
     try:
         entry = get_json(APOD_URL, api_key=API_KEY)
-    except urllib.error.HTTPError:
+    except (urllib.error.URLError, TimeoutError):
         return None
     image = entry.get("hdurl") or entry.get("url", "")
     # Since APOD moved to science.nasa.gov the API returns the NASA logo instead of the picture.
@@ -229,7 +238,9 @@ def notify(title, body, icon=None, actions=None, replace_id=None):
             print(f"{title}\n{body}")
             return None, None
     # resident: GNOME keeps the notification open after a button is clicked.
-    cmd = ["notify-send", "--app-name=NASA Daily Cosmos", "--print-id", "--hint=boolean:resident:true", title, body]
+    # The body is markup, so "&" or "<" in NASA's text would break it.
+    cmd = ["notify-send", "--app-name=NASA Daily Cosmos", "--print-id", "--hint=boolean:resident:true", title,
+           html.escape(body, quote=False)]
     if icon:
         cmd.append(f"--icon={icon}")
     if replace_id:
