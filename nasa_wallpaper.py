@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """A small daily notification with NASA's picture of the day."""
 import argparse
+import html
 import json
 import locale
 import os
@@ -9,6 +10,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -22,6 +24,8 @@ IOTD_FEED = "https://www.nasa.gov/feeds/iotd-feed/"
 LIBRARY_URL = "https://images-api.nasa.gov/search"
 # DEMO_KEY is rate limited per IP but plenty for a few requests a day.
 API_KEY = os.environ.get("NASA_API_KEY", "DEMO_KEY")
+# Pictures older than this are deleted, except favorites and the current wallpaper.
+KEEP_DAYS = 7
 SEARCH_TERMS = ["nebula", "galaxy", "hubble", "webb telescope", "aurora", "saturn", "jupiter", "earth from orbit"]
 
 STRINGS = {
@@ -36,6 +40,8 @@ STRINGS = {
         "api_error": "NASA API error",
         "network_error": "Network error",
         "timed_out": "timed out",
+        "gallery": "NASA favorites",
+        "open": "Open on NASA",
     },
     "tr": {
         "set": "Duvar kâğıdı yap",
@@ -48,6 +54,8 @@ STRINGS = {
         "api_error": "NASA API hatası",
         "network_error": "Ağ hatası",
         "timed_out": "zaman aşımı",
+        "gallery": "NASA favorileri",
+        "open": "NASA'da aç",
     },
 }
 
@@ -249,6 +257,49 @@ def favorite(path):
         FAVORITES.mkdir(parents=True, exist_ok=True)
         shutil.copy2(path, FAVORITES)
         shutil.copy2(path.with_suffix(".json"), FAVORITES)
+        write_gallery()
+
+
+def write_gallery():
+    """Regenerate favorites/index.html: every favorite with its picture and full explanation."""
+    images = {f.stem: f.name for f in FAVORITES.iterdir() if f.suffix not in (".json", ".html")}
+    cards = []
+    for meta in sorted(FAVORITES.glob("*.json"), key=lambda f: f.stat().st_mtime, reverse=True):
+        entry = json.loads(meta.read_text())
+        image = urllib.parse.quote(images.get(meta.stem, ""))
+        link = entry.get("link", "")
+        # The link ends up in an href, so only allow web links.
+        link = f'<a href="{html.escape(link)}">{T["open"]}</a>' if link.startswith(("https://", "http://")) else ""
+        cards.append(f"""<article>
+<a href="{image}"><img src="{image}" alt="" loading="lazy"></a>
+<h2>{html.escape(entry["title"])}</h2>
+<p>{html.escape(entry.get("explanation", ""))}</p>
+{link}
+</article>""")
+    (FAVORITES / "index.html").write_text(f"""<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{T["gallery"]}</title>
+<style>
+body {{ background: #0b0d12; color: #dde; font: 16px/1.6 system-ui, sans-serif; max-width: 960px; margin: auto; padding: 16px; }}
+img {{ width: 100%; border-radius: 8px; }}
+article {{ margin-bottom: 48px; }}
+a {{ color: #8ab4ff; }}
+</style>
+<h1>{T["gallery"]}</h1>
+{"".join(cards)}
+""")
+
+
+def cleanup():
+    """Delete pictures older than KEEP_DAYS, keeping the current wallpaper and the last shown picture."""
+    if not PHOTOS.is_dir():
+        return
+    keep = {Path(f.read_text()).stem for f in (CURRENT, LATEST) if f.exists()}
+    cutoff = time.time() - KEEP_DAYS * 86400
+    for f in PHOTOS.iterdir():
+        if f.is_file() and f.suffix != ".txt" and f.stem not in keep and f.stat().st_mtime < cutoff:
+            f.unlink()
 
 
 def main():
@@ -266,6 +317,8 @@ def main():
             favorite(path)
             notify(T["saved"], metadata(path)["title"], path)
         else:
+            # Cleanup first, so an old copy of a picture that is offered again gets downloaded fresh.
+            cleanup()
             offer(download((apod_today() or iotd_latest()) if args.command == "today" else library_random()))
     except urllib.error.HTTPError as e:
         sys.exit(f"{T['api_error']} {e.code}: {e.reason}")

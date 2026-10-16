@@ -7,7 +7,9 @@ and Windows. Pure Python standard library, nothing to `pip install`.
 - **Today's picture** comes from [APOD](https://apod.nasa.gov/). On video days, or while the APOD API is
   broken, it falls back to [NASA Image of the Day](https://www.nasa.gov/image-of-the-day/).
 - **Random** shows a random space photo from the [NASA Image Library](https://images.nasa.gov/).
-- Pictures are saved to `~/Pictures/NasaPhotos`, favorites to `~/Pictures/NasaPhotos/favorites`.
+- Pictures are saved to `~/Pictures/NasaPhotos` and deleted after 7 days. Favorites are kept forever in
+  `~/Pictures/NasaPhotos/favorites`; open `favorites/index.html` there to browse them with their full
+  explanations.
 
 ## Usage
 
@@ -22,6 +24,8 @@ Without one the shared `DEMO_KEY` is used, which is enough for daily use.
 
 Buttons and messages follow the system language (English or Turkish). Set `NASA_WALLPAPER_LANG=tr` or
 `NASA_WALLPAPER_LANG=en` to override it.
+
+Tests: `python3 -m unittest`.
 
 ## Run daily on Linux (GNOME)
 
