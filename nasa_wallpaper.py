@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""NASA's picture of the day as a desktop notification and wallpaper."""
+"""A small daily notification with NASA's picture of the day."""
 import argparse
 import json
 import locale
@@ -31,7 +31,7 @@ STRINGS = {
         "details": "Details",
         "ok": "OK",
         "saved": "Saved to favorites",
-        "no_current": "No wallpaper set by this script yet",
+        "no_latest": "No picture shown yet",
         "no_photos": "No wallpaper-sized photos in this search, try again",
         "api_error": "NASA API error",
         "network_error": "Network error",
@@ -43,7 +43,7 @@ STRINGS = {
         "details": "Ayrıntılar",
         "ok": "Tamam",
         "saved": "Favorilere eklendi",
-        "no_current": "Bu script henüz bir duvar kâğıdı ayarlamadı",
+        "no_latest": "Henüz bir resim gösterilmedi",
         "no_photos": "Bu aramada duvar kâğıdına uygun fotoğraf yok, tekrar deneyin",
         "api_error": "NASA API hatası",
         "network_error": "Ağ hatası",
@@ -71,7 +71,8 @@ def pictures_dir():
 
 PHOTOS = pictures_dir() / "NasaPhotos"
 FAVORITES = PHOTOS / "favorites"
-CURRENT = PHOTOS / "current.txt"
+CURRENT = PHOTOS / "current.txt"  # wallpaper set by this script
+LATEST = PHOTOS / "latest.txt"  # last picture shown in a notification
 
 
 def get_json(url, **params):
@@ -210,14 +211,11 @@ def notify(title, body, icon=None, actions=None, replace_id=None):
     return (lines[0] if lines else None), (lines[1] if len(lines) > 1 else None)
 
 
-def offer(path, auto):
+def offer(path):
     """Notify about a picture and act on the clicked button."""
+    LATEST.write_text(str(path))
     entry = metadata(path)
-    actions = {"favorite": T["favorite"], "details": T["details"]}
-    if auto:
-        set_wallpaper(path)
-    else:
-        actions = {"set": T["set"], **actions}
+    actions = {"details": T["details"], "favorite": T["favorite"], "set": T["set"]}
     body = entry["explanation"]
     if len(body) > 200:
         body = body[:200].rsplit(" ", 1)[0] + "…"
@@ -255,23 +253,20 @@ def favorite(path):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", nargs="?", default="today", choices=["today", "skip", "favorite"],
-                        help="today: offer today's picture (default); skip: random NASA photo as wallpaper; "
-                             "favorite: save the current wallpaper to favorites")
-    parser.add_argument("--auto", action="store_true", help="set today's picture without asking")
+    parser.add_argument("command", nargs="?", default="today", choices=["today", "random", "favorite"],
+                        help="today: show today's picture (default); random: show a random NASA photo; "
+                             "favorite: save the last shown picture to favorites")
     args = parser.parse_args()
 
     try:
-        if args.command == "today":
-            offer(download(apod_today() or iotd_latest()), args.auto)
-        elif args.command == "skip":
-            offer(download(library_random()), auto=True)
-        elif not CURRENT.exists():
-            sys.exit(T["no_current"])
-        else:
-            path = Path(CURRENT.read_text())
+        if args.command == "favorite":
+            if not LATEST.exists():
+                sys.exit(T["no_latest"])
+            path = Path(LATEST.read_text())
             favorite(path)
             notify(T["saved"], metadata(path)["title"], path)
+        else:
+            offer(download((apod_today() or iotd_latest()) if args.command == "today" else library_random()))
     except urllib.error.HTTPError as e:
         sys.exit(f"{T['api_error']} {e.code}: {e.reason}")
     except urllib.error.URLError as e:

@@ -1,21 +1,20 @@
 # nasa-daily-wallpaper
 
-Every day, shows NASA's picture of the day in a notification, with buttons to set it as your wallpaper,
-save it to favorites or read more about it. Works on Linux (GNOME) and Windows. Pure Python standard
-library, nothing to `pip install`.
+Each morning you get a photo, its title and a few lines about it. Curious? Click **Details** to read the
+full story. Liked it? Add it to your favorites, or set it as your wallpaper. Works on Linux (GNOME)
+and Windows. Pure Python standard library, nothing to `pip install`.
 
 - **Today's picture** comes from [APOD](https://apod.nasa.gov/). On video days, or while the APOD API is
   broken, it falls back to [NASA Image of the Day](https://www.nasa.gov/image-of-the-day/).
-- **Skip** sets a random wallpaper-sized space photo from the [NASA Image Library](https://images.nasa.gov/).
+- **Random** shows a random space photo from the [NASA Image Library](https://images.nasa.gov/).
 - Pictures are saved to `~/Pictures/NasaPhotos`, favorites to `~/Pictures/NasaPhotos/favorites`.
 
 ## Usage
 
 ```sh
-python3 nasa_wallpaper.py            # offer today's picture
-python3 nasa_wallpaper.py --auto     # set today's picture without asking
-python3 nasa_wallpaper.py skip       # random NASA photo as wallpaper
-python3 nasa_wallpaper.py favorite   # save the current wallpaper to favorites
+python3 nasa_wallpaper.py            # show today's picture
+python3 nasa_wallpaper.py random     # show a random NASA photo
+python3 nasa_wallpaper.py favorite   # save the last shown picture to favorites
 ```
 
 Optionally get a free API key from [api.nasa.gov](https://api.nasa.gov/) and set it as `NASA_API_KEY`.
