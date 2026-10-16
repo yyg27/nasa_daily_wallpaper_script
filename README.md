@@ -45,8 +45,8 @@ It runs every day at 09:00, or right after login if the computer was off. To run
 
 ## Run daily on Windows
 
-Install Python from [python.org](https://www.python.org/downloads/) (it includes the Tk library the
-popup window needs). Then in PowerShell, from this folder:
+Works on Windows 10 and 11. Install Python from [python.org](https://www.python.org/downloads/) (it
+includes the Tk library the popup window needs). Then in PowerShell, from this folder:
 
 ```powershell
 $action = New-ScheduledTaskAction -Execute "pythonw.exe" -Argument "`"$PWD\nasa_daily_cosmos.py`""

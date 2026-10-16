@@ -302,6 +302,22 @@ def cleanup():
             f.unlink()
 
 
+def fetch(command):
+    """Download today's or a random picture. On Windows, retry network errors for a few minutes."""
+    # Right after login the network may not be up yet. Task Scheduler doesn't retry a failed run,
+    # systemd does (Restart=on-failure), so retry only on Windows.
+    attempts = 4 if sys.platform == "win32" else 1
+    for attempt in range(attempts):
+        try:
+            return download((apod_today() or iotd_latest()) if command == "today" else library_random())
+        except urllib.error.HTTPError:
+            raise
+        except (urllib.error.URLError, TimeoutError):
+            if attempt == attempts - 1:
+                raise
+            time.sleep(120)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", nargs="?", default="today", choices=["today", "random", "favorite"],
@@ -319,7 +335,7 @@ def main():
         else:
             # Cleanup first, so an old copy of a picture that is offered again gets downloaded fresh.
             cleanup()
-            offer(download((apod_today() or iotd_latest()) if args.command == "today" else library_random()))
+            offer(fetch(args.command))
     except urllib.error.HTTPError as e:
         sys.exit(f"{T['api_error']} {e.code}: {e.reason}")
     except urllib.error.URLError as e:

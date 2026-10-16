@@ -3,7 +3,9 @@ import os
 import tempfile
 import time
 import unittest
+import urllib.error
 from pathlib import Path
+from unittest import mock
 
 import nasa_daily_cosmos as nw
 
@@ -66,6 +68,44 @@ class GalleryTest(Base):
         self.assertIn("Stars &amp; dust", page)
         self.assertIn('href="https://nasa.gov"', page)
         self.assertNotIn("javascript:", page)
+
+
+class FetchTest(unittest.TestCase):
+    def fetch(self, platform, *errors):
+        """Run fetch("random") where the first calls raise the given errors; return (result, calls, sleeps)."""
+        errors = list(errors)
+        calls = []
+        def library_random():
+            calls.append(1)
+            if errors:
+                raise errors.pop(0)
+            return "entry"
+        with mock.patch.object(nw, "library_random", library_random), \
+                mock.patch.object(nw, "download", lambda entry: entry), \
+                mock.patch.object(nw.sys, "platform", platform), mock.patch("time.sleep") as sleep:
+            try:
+                result = nw.fetch("random")
+            except Exception as e:
+                result = e
+        return result, len(calls), sleep.call_count
+
+    def test_windows_retries_network_errors(self):
+        self.assertEqual(self.fetch("win32", urllib.error.URLError("offline"), TimeoutError()), ("entry", 3, 2))
+
+    def test_windows_gives_up_after_four_tries(self):
+        result, calls, _ = self.fetch("win32", *[urllib.error.URLError("offline")] * 4)
+        self.assertIsInstance(result, urllib.error.URLError)
+        self.assertEqual(calls, 4)
+
+    def test_windows_does_not_retry_http_errors(self):
+        result, calls, _ = self.fetch("win32", urllib.error.HTTPError("", 500, "down", None, None))
+        self.assertIsInstance(result, urllib.error.HTTPError)
+        self.assertEqual(calls, 1)
+
+    def test_linux_tries_once(self):
+        result, calls, sleeps = self.fetch("linux", urllib.error.URLError("offline"))
+        self.assertIsInstance(result, urllib.error.URLError)
+        self.assertEqual((calls, sleeps), (1, 0))
 
 
 if __name__ == "__main__":
