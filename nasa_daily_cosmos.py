@@ -10,6 +10,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import urllib.error
 import urllib.parse
@@ -171,16 +172,40 @@ def set_wallpaper(path):
     CURRENT.write_text(str(path))
 
 
-def dialog(title, body, actions):
+def thumbnail(path):
+    """A PNG copy of the picture, fit into 480x320, for the Tk window (Tk can't read JPEG). None on failure."""
+    out = Path(tempfile.gettempdir()) / "nasa-daily-cosmos.png"
+    # System.Drawing ships with Windows PowerShell. Paths go in through the environment, not the script text.
+    script = ("Add-Type -AssemblyName System.Drawing; $i = [Drawing.Image]::FromFile($env:SRC); "
+              "$s = [Math]::Min(480 / $i.Width, 320 / $i.Height); "
+              "$t = New-Object Drawing.Bitmap $i, ([int]($i.Width * $s)), ([int]($i.Height * $s)); "
+              "$t.Save($env:DST, [Drawing.Imaging.ImageFormat]::Png)")
+    try:
+        subprocess.run(["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+                       env={**os.environ, "SRC": str(path), "DST": str(out)}, capture_output=True, check=True,
+                       timeout=30, creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0))
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return out
+
+
+def dialog(title, body, actions, icon=None):
     """Fallback for systems without notify-send (Windows): a small always-on-top window."""
     import tkinter as tk
     choice = None
     root = tk.Tk()
     root.title("NASA Daily Cosmos")
     root.attributes("-topmost", True)
-    tk.Label(root, text=title, font=("TkDefaultFont", 12, "bold"), wraplength=420, justify="left").pack(
+    png = icon and thumbnail(icon)
+    if png:
+        try:
+            image = tk.PhotoImage(file=png)
+            tk.Label(root, image=image).pack(padx=16, pady=(16, 0))
+        except tk.TclError:
+            pass
+    tk.Label(root, text=title, font=("TkDefaultFont", 12, "bold"), wraplength=480, justify="left").pack(
         padx=16, pady=(16, 4), anchor="w")
-    tk.Label(root, text=body, wraplength=420, justify="left").pack(padx=16, anchor="w")
+    tk.Label(root, text=body, wraplength=480, justify="left").pack(padx=16, anchor="w")
     row = tk.Frame(root)
     row.pack(padx=16, pady=16, anchor="e")
 
@@ -199,7 +224,7 @@ def notify(title, body, icon=None, actions=None, replace_id=None):
     """Show (or update) a notification. Returns (notification id, clicked action or None)."""
     if not shutil.which("notify-send"):
         try:
-            return None, dialog(title, body, actions)
+            return None, dialog(title, body, actions, icon)
         except ImportError:
             print(f"{title}\n{body}")
             return None, None

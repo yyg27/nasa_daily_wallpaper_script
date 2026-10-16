@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 import tempfile
 import time
 import unittest
@@ -106,6 +107,21 @@ class FetchTest(unittest.TestCase):
         result, calls, sleeps = self.fetch("linux", urllib.error.URLError("offline"))
         self.assertIsInstance(result, urllib.error.URLError)
         self.assertEqual((calls, sleeps), (1, 0))
+
+
+class ThumbnailTest(unittest.TestCase):
+    def test_passes_paths_through_environment(self):
+        with mock.patch("subprocess.run") as run:
+            out = nw.thumbnail(Path("C:/a'; rm x.jpg"))
+        env = run.call_args.kwargs["env"]
+        self.assertEqual((env["SRC"], env["DST"]), (str(Path("C:/a'; rm x.jpg")), str(out)))
+        self.assertNotIn("rm x", run.call_args.args[0][-1])
+
+    def test_returns_none_when_conversion_fails(self):
+        for error in (FileNotFoundError(), subprocess.CalledProcessError(1, "powershell"),
+                      subprocess.TimeoutExpired("powershell", 30)):
+            with mock.patch("subprocess.run", side_effect=error):
+                self.assertIsNone(nw.thumbnail(Path("x.jpg")))
 
 
 if __name__ == "__main__":
